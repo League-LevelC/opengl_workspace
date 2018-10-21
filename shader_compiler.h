@@ -3,21 +3,21 @@
 #include <iostream>
 #include <OpenGL/gl3.h>
 
-inline char* readFileToCharArray(const char* fileName, long* fileSize){
-    FILE* fp = fopen (fileName, "rb" );
+inline char* readFileToCharArray(const char* fileName){
+    FILE* fp = fopen (fileName, "r" );
     if(!fp){
         printf("Error loading file %s\n", fileName);
         return 0;
     } 
 
-    fseek(fp , 0, SEEK_END);
-    *fileSize = ftell(fp);
+    fseek(fp, 0, SEEK_END);
+    long fileSize = ftell(fp);
     rewind(fp);
-    char *buffer = new char[*fileSize];
+    char *buffer = new char[fileSize + 1];
 
-    fread(buffer, *fileSize, 1, fp);
-
+    fread(buffer, 1, fileSize, fp);
     fclose(fp);
+    buffer[fileSize] = '\0';
     return buffer;
 }
 

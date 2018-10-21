@@ -5,12 +5,13 @@
 
 int main(int argc, char** argv){
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("OpenGL", 100, 100, 400, 500, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("OpenGL", 100, 100, 900, 500, SDL_WINDOW_OPENGL);
     SDL_GLContext context = SDL_GL_CreateContext(window);
 
     long vertFileSize, fragFileSize;
-    char* vertexData = readFileToCharArray("vertex_shader.glsl", &vertFileSize);
-    char* fragData = readFileToCharArray("fragment_shader.glsl", &fragFileSize);
+    char* vertexData = readFileToCharArray("vertex_shader.glsl");
+    char* fragData = readFileToCharArray("fragment_shader.glsl");
+
     unsigned int shader = compileShaderVF(vertexData, fragData);
     glUseProgram(shader);
     int postionId = glGetAttribLocation(shader, "position");
