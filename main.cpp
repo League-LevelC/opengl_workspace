@@ -3,6 +3,59 @@
 
 #include "shader_compiler.h"
 
+#define GRAVITY -1
+#define MAX_TRIANGLES 4096
+struct Triangle {
+    float position[2];
+    float velocity[2];
+};
+
+void setIdentityMatrix(float matrix[4][4]){
+    for(int i = 0; i < 4; i++){
+        for(int j = 0; j < 4; j++){
+            if(i == j){
+                matrix[i][j] = 1;
+            }else{
+                matrix[i][j] = 0;
+            }
+        }
+    }
+}
+
+void setOrthoganalProjectionMatrix(float matrix[4][4], float left, float right, float bottom, float top){
+    matrix[0][0] = 2 / (right - left);
+    matrix[1][1] = 2 / (top - bottom);
+    matrix[3][0] = -((right + left) / (right - left));
+    matrix[3][1] = -((top + bottom) / (top - bottom));
+}
+
+void translateMatrix2D(float matrix[4][4], float newPos[2]){
+    matrix[3][0] += newPos[0];
+    matrix[3][1] += newPos[1];
+}
+
+void updateTriangles(Triangle* tris, unsigned int totalTriangles){
+    for(int i = 0; i < totalTriangles; i++){
+        float nextPos[2]; 
+        nextPos[0] = tris[i].position[0];
+        nextPos[1] = tris[i].position[1] + tris[i].velocity[1];
+        nextPos[1] -= GRAVITY;
+        nextPos[0] += tris[i].velocity[0];
+    }
+}
+
+void addTriangle(int x, int y, Triangle* tris, unsigned int totalTriangles){
+    if(totalTriangles + 1 >= MAX_TRIANGLES){ return; }
+    tris[totalTriangles].position[0] = x;
+    tris[totalTriangles].position[1] = y;
+    tris[totalTriangles].velocity[0] = 1;
+    tris[totalTriangles].velocity[1] = 30;
+}
+
+void renderTriangles(Triangle* tris, unsigned int totalTriangles){
+
+}
+
 int main(int argc, char** argv){
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow("OpenGL", 100, 100, 900, 500, SDL_WINDOW_OPENGL);
@@ -15,13 +68,26 @@ int main(int argc, char** argv){
     glUseProgram(shader);
     int postionId = glGetAttribLocation(shader, "position");
     int texCoordId = glGetAttribLocation(shader, "texCoord");
-    int redColorId = glGetUniformLocation(shader, "redColor");
+
+    int modelMatId = glGetUniformLocation(shader, "modelMatrix");
+    int projectionMatId = glGetUniformLocation(shader, "projectionMatrix");
+
+    float projectionMatrix[4][4];
+    setIdentityMatrix(projectionMatrix);
+    setOrthoganalProjectionMatrix(projectionMatrix, -10, 10, -10, 10); 
+    glUniformMatrix4fv(projectionMatId, 1, false, projectionMatrix[0]);
     
+    float modelMatrix[4][4];
+    setIdentityMatrix(modelMatrix);  
+    float newPos[2] = {7, 3};
+    translateMatrix2D(modelMatrix, newPos);
+
+    glUniformMatrix4fv(modelMatId, 1, false, modelMatrix[0]);
 
     float verts[] = {
-        -0.8, -0.8, 0, 1, 
-        0.0, 0.8, 0.5, 0,
-        0.8, -0.8, 1, 1,
+        -1, -1, 0, 1, 
+        0, 1, 0.5, 0,
+        1, -1, 1, 1,
     };
 
     unsigned int vao, vbo;
@@ -51,7 +117,11 @@ int main(int argc, char** argv){
 
     glClearColor(1, 1, 0, 1);
 
-    float rC = 0.0;
+    Triangle triangles[MAX_TRIANGLES];
+    unsigned int totalTriangles = 0;
+
+
+
     SDL_Event event;
     bool isRunning = true;
     while(isRunning){
@@ -67,14 +137,15 @@ int main(int argc, char** argv){
                     }
                     break;
                 }
+                case SDL_MOUSEBUTTONDOWN :{
+                    int x, y;
+                    SDL_GetMouseState(&x, &y);
+                    break;
+                }
             }
         }
         glClear(GL_COLOR_BUFFER_BIT);
-        rC += 0.01;
-        if(rC > 1){
-            rC = 0;
-        }
-        glUniform1f(redColorId, rC);
+      
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         SDL_GL_SwapWindow(window);
