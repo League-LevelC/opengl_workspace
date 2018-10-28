@@ -1,10 +1,17 @@
 #include "SDL2/SDL.h"
 #include "OpenGL/gl3.h"
 
+#include <time.h>
+#include <stdlib.h>
+
 #include "shader_compiler.h"
 
 #define GRAVITY -1
 #define MAX_TRIANGLES 4096
+
+#define WIDTH 900
+#define HEIGHT 500
+
 struct Triangle {
     float position[2];
     float velocity[2];
@@ -34,31 +41,51 @@ void translateMatrix2D(float matrix[4][4], float newPos[2]){
     matrix[3][1] += newPos[1];
 }
 
+void scaleMatrix2D(float matrix[4][4], float newScale[2]){
+    matrix[0][0] = newScale[0];
+    matrix[1][1] = newScale[1];
+}
+
 void updateTriangles(Triangle* tris, unsigned int totalTriangles){
     for(int i = 0; i < totalTriangles; i++){
         float nextPos[2]; 
         nextPos[0] = tris[i].position[0];
         nextPos[1] = tris[i].position[1] + tris[i].velocity[1];
-        nextPos[1] -= GRAVITY;
+        tris[i].velocity[1] += GRAVITY;
         nextPos[0] += tris[i].velocity[0];
+        tris[i].position[0] = nextPos[0];
+        tris[i].position[1] = nextPos[1];
     }
 }
 
-void addTriangle(int x, int y, Triangle* tris, unsigned int totalTriangles){
-    if(totalTriangles + 1 >= MAX_TRIANGLES){ return; }
+void addTriangle(int x, int y, Triangle* tris, unsigned int& totalTriangles){
+    if(totalTriangles + 1 >= MAX_TRIANGLES){ totalTriangles = 0; }
     tris[totalTriangles].position[0] = x;
-    tris[totalTriangles].position[1] = y;
-    tris[totalTriangles].velocity[0] = 1;
-    tris[totalTriangles].velocity[1] = 30;
+    tris[totalTriangles].position[1] = HEIGHT - y;
+    tris[totalTriangles].velocity[0] = (rand() % 10) - 5;;
+    tris[totalTriangles].velocity[1] = 20;
+    totalTriangles++;
 }
 
-void renderTriangles(Triangle* tris, unsigned int totalTriangles){
-
+void renderTriangles(Triangle* tris, unsigned int totalTriangles, int modelMatId){
+    for(int i = 0; i < totalTriangles; i++){
+        float modelMatrix[4][4];
+        setIdentityMatrix(modelMatrix);  
+        float newPos[2];
+        newPos[0] = tris[i].position[0];
+        newPos[1] = tris[i].position[1];
+        float newScale[2] = {10, 10};
+        translateMatrix2D(modelMatrix, newPos);
+        scaleMatrix2D(modelMatrix, newScale);
+        glUniformMatrix4fv(modelMatId, 1, false, modelMatrix[0]);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 }
 
 int main(int argc, char** argv){
+    srand(time(0));
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("OpenGL", 100, 100, 900, 500, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("OpenGL", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_OPENGL);
     SDL_GLContext context = SDL_GL_CreateContext(window);
 
     char* vertexData = readFileToCharArray("vertex_shader.glsl");
@@ -74,15 +101,8 @@ int main(int argc, char** argv){
 
     float projectionMatrix[4][4];
     setIdentityMatrix(projectionMatrix);
-    setOrthoganalProjectionMatrix(projectionMatrix, -10, 10, -10, 10); 
+    setOrthoganalProjectionMatrix(projectionMatrix, 0, WIDTH, 0, HEIGHT); 
     glUniformMatrix4fv(projectionMatId, 1, false, projectionMatrix[0]);
-    
-    float modelMatrix[4][4];
-    setIdentityMatrix(modelMatrix);  
-    float newPos[2] = {7, 3};
-    translateMatrix2D(modelMatrix, newPos);
-
-    glUniformMatrix4fv(modelMatId, 1, false, modelMatrix[0]);
 
     float verts[] = {
         -1, -1, 0, 1, 
@@ -106,6 +126,7 @@ int main(int argc, char** argv){
         255,255,255,255,0,0,0,255,
         0,0,0,255,255,255,255,255
     };
+
     unsigned int tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -140,13 +161,15 @@ int main(int argc, char** argv){
                 case SDL_MOUSEBUTTONDOWN :{
                     int x, y;
                     SDL_GetMouseState(&x, &y);
+                    addTriangle(x, y, triangles, totalTriangles);
                     break;
                 }
             }
         }
         glClear(GL_COLOR_BUFFER_BIT);
-      
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        updateTriangles(triangles, totalTriangles);      
+        renderTriangles(triangles, totalTriangles, modelMatId);
 
         SDL_GL_SwapWindow(window);
     }
